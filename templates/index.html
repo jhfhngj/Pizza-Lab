@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizza Lab</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: -0.025em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            background: rgba(34, 197, 94, 0.1);
+            color: #4ade80;
+        }
+        .status-badge.disconnected {
+            border-color: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+        }
+        .task-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            display: block;
+        }
+        #print-subtask {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #2dd4bf;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .dashboard-grid { grid-template-columns: 2fr 1fr; }
+        }
+        .card {
+            background-color: rgba(30, 41, 59, 0.5);
+            border: 1px solid #1e293b;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        .progress-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
+        .percent-display { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem; }
+        #print-percent { font-size: 3.75rem; font-weight: 900; color: #fff; }
+        .percent-sub { color: #94a3b8; font-size: 0.875rem; }
+        .progress-track {
+            width: 100%;
+            background-color: #334155;
+            height: 1rem;
+            border-radius: 9999px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+        }
+        #progress-bar {
+            background-color: #14b8a6;
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease-out;
+        }
+        .meta-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            border-top: 1px solid rgba(30, 41, 59, 0.8);
+            padding-top: 1rem;
+        }
+        .meta-value { font-family: monospace; font-size: 1.125rem; font-weight: 700; color: #fff; margin-top: 0.25rem; display: block; }
+        .thermal-stack { display: flex; flex-direction: column; gap: 1.5rem; }
+        .thermal-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .temp-display { display: flex; align-items: baseline; gap: 0.25rem; margin-top: 0.25rem; }
+        .temp-num { font-size: 1.875rem; font-weight: 700; font-family: monospace; color: #fb923c; }
+        .temp-unit { font-size: 1.125rem; color: #94a3b8; }
+        .target-badge { font-size: 0.75rem; background-color: #334155; color: #cbd5e1; font-family: monospace; padding: 0.125rem 0.5rem; border-radius: 4px; }
+        
+        .ams-container { grid-column: 1 / -1; margin-top: 0.5rem; }
+        .ams-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .ams-slot { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem; display: flex; align-items: center; gap: 1rem; }
+        .color-dot { width: 1.75rem; height: 1.75rem; border-radius: 50%; border: 2px solid #475569; box-shadow: 0 0 10px rgba(0,0,0,0.5); flex-shrink: 0; }
+        .slot-details { display: flex; flex-direction: column; }
+        .slot-name { font-size: 0.85rem; font-weight: 800; color: #fff; }
+        .slot-type { font-size: 0.75rem; color: #94a3b8; font-family: monospace; }
+        
+        .debug-container { grid-column: 1 / -1; margin-top: 2rem; }
+        details { border: 1px solid #1e293b; border-radius: 0.75rem; background-color: #0f172a; }
+        summary { padding: 1rem; cursor: pointer; font-size: 0.875rem; color: #94a3b8; user-select: none; }
+        summary:hover { color: #fff; }
+        .debug-content { padding: 1rem; border-top: 1px solid #1e293b; background: rgba(0,0,0,0.2); }
+        pre { font-family: monospace; font-size: 0.75rem; color: #34d399; white-space: pre-wrap; overflow-x: auto; max-height: 300px; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>
+                    <span>Pizza Lab</span>
+                    <span id="connection-status" class="status-badge disconnected">Connecting...</span>
+                </h1>
+            </div>
+            <div style="text-align: right;">
+                <span class="task-label">Current task</span>
+                <p id="print-subtask">Nothing</p>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <div class="card">
+                <h2 class="progress-title">Print progress</h2>
+                <div class="percent-display">
+                    <span id="print-percent">0%</span>
+                    <span class="percent-sub">complete</span>
+                </div>
+                <div class="progress-track">
+                    <div id="progress-bar"></div>
+                </div>
+                <div class="meta-row">
+                    <div>
+                        <span class="task-label">Time remaining</span>
+                        <span id="time-remaining" class="meta-value">--:--</span>
+                    </div>
+                    <div>
+                        <span class="task-label">Speed mode</span>
+                        <span id="speed-factor" class="meta-value">Normal</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="thermal-stack">
+                <div class="card">
+                    <div class="thermal-header">
+                        <div>
+                            <span class="task-label">Nozzle temperature</span>
+                            <div class="temp-display">
+                                <span id="nozzle-temp" class="temp-num">0</span>
+                                <span class="temp-unit">°C</span>
+                            </div>
+                        </div>
+                        <span class="target-badge">Target: <span id="nozzle-target">0</span>°C</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="thermal-header">
+                        <div>
+                            <span class="task-label">Bed temperature</span>
+                            <div class="temp-display">
+                                <span id="bed-temp" class="temp-num">0</span>
+                                <span class="temp-unit">°C</span>
+                            </div>
+                        </div>
+                        <span class="target-badge">Target: <span id="bed-target">0</span>°C</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card ams-container">
+                <h2 class="progress-title">Automatic Material System (AMS)</h2>
+                <div class="ams-grid">
+                    <div class="ams-slot">
+                        <div id="ams-dot-0" class="color-dot" style="background-color: #334155;"></div>
+                        <div class="slot-details">
+                            <span class="slot-name">Slot A1</span>
+                            <span id="ams-type-0" class="slot-type">Empty</span>
+                        </div>
+                    </div>
+                    <div class="ams-slot">
+                        <div id="ams-dot-1" class="color-dot" style="background-color: #334155;"></div>
+                        <div class="slot-details">
+                            <span class="slot-name">Slot A2</span>
+                            <span id="ams-type-1" class="slot-type">Empty</span>
+                        </div>
+                    </div>
+                    <div class="ams-slot">
+                        <div id="ams-dot-2" class="color-dot" style="background-color: #334155;"></div>
+                        <div class="slot-details">
+                            <span class="slot-name">Slot A3</span>
+                            <span id="ams-type-2" class="slot-type">Empty</span>
+                        </div>
+                    </div>
+                    <div class="ams-slot">
+                        <div id="ams-dot-3" class="color-dot" style="background-color: #334155;"></div>
+                        <div class="slot-details">
+                            <span class="slot-name">Slot A4</span>
+                            <span id="ams-type-3" class="slot-type">Empty</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="debug-container">
+                <details>
+                    <summary>mqtt</summary>
+                    <div class="debug-content">
+                        <pre id="debug-raw">Waiting for incoming ...</pre>
+                    </div>
+                </details>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const socket = io();
+
+        const statusBadge = document.getElementById('connection-status');
+        const printSubtask = document.getElementById('print-subtask');
+        const printPercent = document.getElementById('print-percent');
+        const progressBar = document.getElementById('progress-bar');
+        const timeRemaining = document.getElementById('time-remaining');
+        const speedFactor = document.getElementById('speed-factor');
+        const nozzleTemp = document.getElementById('nozzle-temp');
+        const nozzleTarget = document.getElementById('nozzle-target');
+        const bedTemp = document.getElementById('bed-temp');
+        const bedTarget = document.getElementById('bed-target');
+        const debugRaw = document.getElementById('debug-raw');
+
+        socket.on('connect', () => {
+            statusBadge.textContent = "Live";
+            statusBadge.className = "status-badge";
+        });
+
+        socket.on('disconnect', () => {
+            statusBadge.textContent = "Disconnected";
+            statusBadge.className = "status-badge disconnected";
+        });
+
+        socket.on('printer_data', (data) => {
+            if (!data) return;
+            
+            debugRaw.textContent = JSON.stringify(data, null, 2);
+
+            if (data.print) {
+                const p = data.print;
+
+                if (p.gcode_state) {
+                    printSubtask.textContent = p.subtask_name || p.gcode_state;
+                }
+
+                if (p.mc_percent !== undefined) {
+                    const pct = p.mc_percent;
+                    printPercent.textContent = pct + "%";
+                    progressBar.style.width = pct + "%";
+                }
+
+                if (p.mc_remaining_time !== undefined) {
+                    const totalMinutes = p.mc_remaining_time;
+                    if (totalMinutes <= 0) {
+                        timeRemaining.textContent = "00:00";
+                    } else {
+                        const hrs = Math.floor(totalMinutes / 60);
+                        const mins = totalMinutes % 60;
+                        timeRemaining.textContent = String(hrs).padStart(2, '0') + ":" + String(mins).padStart(2, '0');
+                    }
+                }
+
+                if (p.spd_lvl !== undefined) {
+                    const modes = { 1: "Silent", 2: "Normal", 3: "Sport", 4: "Ludicrous" };
+                    speedFactor.textContent = modes[p.spd_lvl] || "Normal";
+                }
+
+                if (p.nozzle_temper !== undefined) nozzleTemp.textContent = Math.round(p.nozzle_temper);
+                if (p.nozzle_target_temper !== undefined) nozzleTarget.textContent = Math.round(p.nozzle_target_temper);
+                if (p.bed_temper !== undefined) bedTemp.textContent = Math.round(p.bed_temper);
+                if (p.bed_target_temper !== undefined) bedTarget.textContent = Math.round(p.bed_target_temper);
+
+                if (p.ams && p.ams.ams && Array.isArray(p.ams.ams)) {
+                    const activeAms = p.ams.ams[0];
+                    if (activeAms && activeAms.tray && Array.isArray(activeAms.tray)) {
+                        activeAms.tray.forEach((tray) => {
+                            if (!tray || tray.id === undefined) return;
+                            const id = tray.id;
+                            const dotEl = document.getElementById('ams-dot-' + id);
+                            const typeEl = document.getElementById('ams-type-' + id);
+
+                            if (dotEl && typeEl) {
+                                if (tray.tray_color && tray.tray_type) {
+                                    let color = tray.tray_color;
+                                    if (!color.startsWith('#')) color = '#' + color.substring(0, 6);
+                                    dotEl.style.backgroundColor = color;
+                                    typeEl.textContent = tray.tray_type;
+                                } else {
+                                    dotEl.style.backgroundColor = '#334155';
+                                    typeEl.textContent = "Empty";
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
