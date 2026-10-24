@@ -66,4 +66,4 @@ if __name__ == "__main__":
     
     print("Starting Gevent-WebSocket Web Server on http://127.0.0.1:2080")
     # socketio.run automatically picks up 'gevent' and overrides the broken standard Werkzeug server
-    socketio.run(app, host="127.0.0.1", port=2080)
+    socketio.run(app, host="0.0.0.0", port=2080)
