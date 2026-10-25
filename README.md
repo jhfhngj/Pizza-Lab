@@ -1,4 +1,5 @@
 # Pizza Lab
+Ver gud bambu monitor
 ## Pizza what?
 Pizza Lab is a service that monitors your P1S.
 
